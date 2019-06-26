@@ -3,6 +3,7 @@ set cpo&vim
 
 let s:on_windows = has('win32') || has('win64')
 let s:dict_t = type({})
+let s:list_t = type([])
 if exists('v:true')
     let s:bool_t = type(v:true)
 else
@@ -27,14 +28,14 @@ function! s:system(str, ...) abort
     let input = a:0 >= 1 ? a:1 : ''
 
     if a:0 == 0 || a:1 ==# ''
-        let output = s:has_vimproc() ?
+        silent let output = s:has_vimproc() ?
                     \ vimproc#system(command) : system(command)
     elseif a:0 == 1
-        let output = s:has_vimproc() ?
+        silent let output = s:has_vimproc() ?
                     \ vimproc#system(command, input) : system(command, input)
     else
         " ignores 3rd argument unless you have vimproc.
-        let output = s:has_vimproc() ?
+        silent let output = s:has_vimproc() ?
                     \ vimproc#system(command, input, a:2) : system(command, input)
     endif
 
@@ -44,12 +45,12 @@ endfunction
 function! s:create_keyvals(key, val) abort
     if type(a:val) == s:dict_t
         return a:key . ': {' . s:stringize_options(a:val) . '}'
+    elseif type(a:val) == s:bool_t
+        return a:key . (a:val == v:true ? ': true' : ': false')
+    elseif type(a:val) == s:list_t
+        return a:key . ': [' . join(a:val,',') . ']'
     else
-        if type(a:val) == s:bool_t
-            return a:key . (a:val == v:true ? ': true' : ': false')
-        else
-            return a:key . ': ' . a:val
-        endif
+        return a:key . ': ''' . escape(a:val, '''') . ''''
     endif
 endfunction
 
@@ -236,7 +237,7 @@ function! clang_format#replace(line1, line2, ...) abort
     endif
 
     let winview = winsaveview()
-    let splitted = split(formatted, '\n')
+    let splitted = split(formatted, '\n', 1)
 
     silent! undojoin
     if line('$') > len(splitted)
@@ -262,7 +263,7 @@ endfunction
 
 function! clang_format#enable_format_on_insert() abort
     augroup plugin-clang-format-auto-format-insert
-        autocmd!
+        autocmd! * <buffer>
         autocmd InsertEnter <buffer> let s:pos_on_insertenter = getpos('.')
         autocmd InsertLeave <buffer> call s:format_inserted_area()
     augroup END
